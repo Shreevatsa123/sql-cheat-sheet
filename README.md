@@ -1,5 +1,53 @@
 # Comprehensive SQL Cheatsheet: Beginner to Advanced
 
+## Table of Contents
+
+- [Comprehensive SQL Cheatsheet: Beginner to Advanced](#comprehensive-sql-cheatsheet-beginner-to-advanced)
+- [I. Basic Queries & Clauses](#i-basic-queries--clauses)
+- [II. Filtering Operators (Used with `WHERE` and `HAVING`)](#ii-filtering-operators-used-with-where-and-having)
+- [III. Sorting & Limiting Results](#iii-sorting--limiting-results)
+- [IV. Aggregate Functions (Usually used with `GROUP BY`)](#iv-aggregate-functions-usually-used-with-group-by)
+- [V. Grouping Data](#v-grouping-data)
+- [VI. Joins (Combining Data from Multiple Tables)](#vi-joins-combining-data-from-multiple-tables)
+- [VII. Set Operations (Combining Result Sets)](#vii-set-operations-combining-result-sets)
+- [VIII. Subqueries (Nested Queries)](#viii-subqueries-nested-queries)
+- [IX. Common Table Expressions (CTEs)](#ix-common-table-expressions-ctes)
+- [X. Window Functions](#x-window-functions)
+- [XI. String Functions (Syntax/availability varies)](#xi-string-functions-syntaxavailability-varies)
+- [XII. Numeric Functions](#xii-numeric-functions)
+- [XIII. Date & Time Functions (Highly dialect-specific)](#xiii-date--time-functions-highly-dialect-specific)
+- [XIV. Conditional Logic](#xiv-conditional-logic)
+- [XV. Data Definition Language (DDL) - Defines/Modifies Database Structure](#xv-data-definition-language-ddl--definesmodifies-database-structure)
+- [XVI. Constraints (Enforce Data Integrity)](#xvi-constraints-enforce-data-integrity)
+- [XVII. Data Manipulation Language (DML) - Manipulates Data](#xvii-data-manipulation-language-dml--manipulates-data)
+- [XVIII. Transaction Control Language (TCL) - Manages Transactions](#xviii-transaction-control-language-tcl--manages-transactions)
+- [XIX. Views](#xix-views)
+- [XX. Indexes](#xx-indexes)
+- [XXI. Stored Procedures & Functions (Syntax varies greatly)](#xxi-stored-procedures--functions-syntax-varies-greatly)
+- [XXII. Data Control Language (DCL) - Manages Permissions](#xxii-data-control-language-dcl--manages-permissions)
+- [XXIII. Advanced & Miscellaneous](#xxiii-advanced--miscellaneous)
+- [XXIV. Logical Query Processing Order (How a `SELECT` Actually Runs)](#xxiv-logical-query-processing-order-how-a-select-actually-runs)
+- [XXV. Common Schema Types (OLTP vs. OLAP / Warehouse Schemas)](#xxv-common-schema-types-oltp-vs-olap--warehouse-schemas)
+  - [1. Normalized OLTP Schema (3NF-ish)](#1-normalized-oltp-schema-3nf-ish)
+  - [2. Star Schema (Data Warehouse)](#2-star-schema-data-warehouse)
+  - [3. Snowflake Schema](#3-snowflake-schema)
+  - [4. Constellation / Galaxy Schema](#4-constellation--galaxy-schema)
+- [XXVI. Slowly Changing Dimensions (SCD) – Types & Quick Examples](#xxvi-slowly-changing-dimensions-scd--types--quick-examples)
+  - [SCD Type 0 – Retain Original (No Changes)](#scd-type-0--retain-original-no-changes)
+  - [SCD Type 1 – Overwrite (No History)](#scd-type-1--overwrite-no-history)
+  - [SCD Type 2 – Add Row (Full History)](#scd-type-2--add-row-full-history)
+  - [SCD Type 3 – Limited History (Current + Previous)](#scd-type-3--limited-history-current--previous)
+  - [SCD Type 4 – History Table (Separate)](#scd-type-4--history-table-separate)
+  - [SCD Type 6 – Hybrid (1 + 2 + 3)](#scd-type-6--hybrid-1--2--3)
+- [XXIV. Normalization (Database Design)](#xxiv-normalization-database-design)
+  - [A. Anomalies (What Normalization Tries to Avoid)](#a-anomalies-what-normalization-tries-to-avoid)
+  - [B. First Normal Form (1NF)](#b-first-normal-form-1nf)
+  - [C. Second Normal Form (2NF)](#c-second-normal-form-2nf)
+  - [D. Third Normal Form (3NF)](#d-third-normal-form-3nf)
+  - [E. Boyce–Codd Normal Form (BCNF)](#e-boycecodd-normal-form-bcnf)
+  - [F. Normalize vs. Denormalize](#f-normalize-vs-denormalize)
+
+
 **General Notes:**
 
 * **Case Sensitivity:** SQL keywords (e.g., `SELECT`, `FROM`) are generally case-insensitive. Table and column names might be case-sensitive depending on the specific database system and configuration.
