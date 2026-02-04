@@ -363,3 +363,499 @@
     * `CREATE TRIGGER <trigger_name> [BEFORE|AFTER|INSTEAD OF] [INSERT|UPDATE|DELETE] ON <table_name> [FOR EACH ROW|STATEMENT] EXECUTE FUNCTION <proc_name>();` (Syntax varies greatly).
 
 This cheatsheet provides a broad overview of SQL. Remember that practical mastery comes from applying these concepts and understanding the nuances of your specific database system.
+
+## XXIV. Logical Query Processing Order (How a `SELECT` Actually Runs)
+
+SQL is **written** in one order but **logically executed** in another. This explains why some things (like aliases) are not available in `WHERE`, but are in `ORDER BY`.
+
+**Logical (conceptual) execution order:**
+
+1. `FROM`  
+2. `ON` (join condition)  
+3. `JOIN` (combine rows from tables)  
+4. `WHERE` (row-level filtering)  
+5. `GROUP BY` (create groups)  
+6. `HAVING` (group-level filtering)  
+7. `SELECT` (compute expressions, aliases)  
+8. `DISTINCT`  
+9. `ORDER BY`  
+10. `LIMIT` / `OFFSET` / `FETCH` / `TOP`  
+
+**Key implications:**
+
+* `WHERE` cannot use aggregate functions (`SUM`, `COUNT`, etc.); use `HAVING` for that.
+* `SELECT` aliases are **not** available in `WHERE`, but **are** available in `ORDER BY` and `HAVING` (most DBs).
+* `WHERE` filters rows **before** grouping; `HAVING` filters **after** grouping.
+
+```sql
+SELECT
+    d.department,
+    COUNT(*) AS emp_count,
+    AVG(e.salary) AS avg_salary
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE e.hire_date >= '2022-01-01'      -- row filter (before GROUP BY)
+GROUP BY d.department
+HAVING COUNT(*) >= 5                   -- group filter (after GROUP BY)
+ORDER BY avg_salary DESC;              -- can use alias here
+```
+
+***
+
+## XXV. Common Schema Types (OLTP vs. OLAP / Warehouse Schemas)
+
+### 1. Normalized OLTP Schema (3NF-ish)
+
+Optimized for **transactions** (many small reads/writes). Reduces redundancy.
+
+```sql
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    email       VARCHAR(200) UNIQUE,
+    created_at  TIMESTAMP NOT NULL
+);
+
+CREATE TABLE orders (
+    order_id     INT PRIMARY KEY,
+    customer_id  INT NOT NULL REFERENCES customers(customer_id),
+    order_date   DATE NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL
+);
+
+CREATE TABLE order_items (
+    order_item_id INT PRIMARY KEY,
+    order_id      INT NOT NULL REFERENCES orders(order_id),
+    product_id    INT NOT NULL,
+    quantity      INT NOT NULL,
+    unit_price    DECIMAL(10,2) NOT NULL
+);
+```
+
+### 2. Star Schema (Data Warehouse)
+
+Optimized for **analytics** (large scans, aggregations). Central **fact** table, surrounded by **dimension** tables.
+
+```sql
+-- Fact table (measures)
+CREATE TABLE fact_sales (
+    sales_key    INT PRIMARY KEY,
+    date_key     INT NOT NULL,
+    product_key  INT NOT NULL,
+    customer_key INT NOT NULL,
+    quantity     INT NOT NULL,
+    revenue      DECIMAL(12,2) NOT NULL
+    -- Foreign keys → dimensions (often enforced logically)
+);
+
+-- Dimension tables (descriptive attributes)
+CREATE TABLE dim_date (
+    date_key  INT PRIMARY KEY,
+    full_date DATE,
+    year      INT,
+    month     INT,
+    day       INT,
+    weekday   VARCHAR(10)
+);
+
+CREATE TABLE dim_product (
+    product_key   INT PRIMARY KEY,
+    product_id    VARCHAR(50),
+    product_name  VARCHAR(100),
+    category      VARCHAR(50),
+    brand         VARCHAR(50)
+);
+```
+
+Star schema: **denormalized** dimensions (more repeated text, fewer joins, faster BI queries).
+
+### 3. Snowflake Schema
+
+Like star schema, but **dimensions are normalized** into multiple tables (more joins, less redundancy).
+
+```sql
+CREATE TABLE dim_product (
+    product_key  INT PRIMARY KEY,
+    product_id   VARCHAR(50),
+    product_name VARCHAR(100),
+    category_key INT
+);
+
+CREATE TABLE dim_category (
+    category_key   INT PRIMARY KEY,
+    category_name  VARCHAR(50),
+    department_key INT
+);
+
+CREATE TABLE dim_department (
+    department_key INT PRIMARY KEY,
+    department_name VARCHAR(50)
+);
+```
+
+### 4. Constellation / Galaxy Schema
+
+Multiple fact tables sharing dimensions (e.g., `fact_sales`, `fact_inventory` both use `dim_date`, `dim_product`).
+
+```sql
+CREATE TABLE fact_inventory (
+    inventory_key INT PRIMARY KEY,
+    date_key      INT NOT NULL,
+    product_key   INT NOT NULL,
+    warehouse_key INT NOT NULL,
+    qty_on_hand   INT NOT NULL
+);
+-- Shares dim_date, dim_product, etc. with fact_sales
+```
+
+***
+
+## XXVI. Slowly Changing Dimensions (SCD) – Types & Quick Examples
+
+Used in data warehousing to track **dimension attribute changes over time**  
+(e.g., customer moves city, product category changes, etc.).
+
+Assume a generic dimension structure:
+
+```sql
+CREATE TABLE dim_customer (
+    customer_sk    INT PRIMARY KEY,      -- surrogate key
+    customer_id    INT,                  -- business/natural key
+    name           VARCHAR(100),
+    city           VARCHAR(100),
+    effective_from DATE,
+    effective_to   DATE,
+    is_current     BOOLEAN,
+    version        INT
+);
+```
+
+### SCD Type 0 – Retain Original (No Changes)
+
+* Changes are **ignored** for chosen attributes.
+* Used for “fixed” attributes (e.g., date of birth).
+
+_No special SQL: you simply do not update these columns._
+
+***
+
+### SCD Type 1 – Overwrite (No History)
+
+* Always keep only the **latest** value; past values are **lost**.
+* Simple, but no time-travel analysis.
+
+```sql
+-- Overwrite current row in-place
+UPDATE dim_customer d
+SET
+    name = s.name,
+    city = s.city
+FROM staging_customer s
+WHERE d.customer_id = s.customer_id;
+```
+
+***
+
+### SCD Type 2 – Add Row (Full History)
+
+* **New row per change**; each row has a validity period.
+* Supports “as of date” queries.
+
+**Step 1: expire current row (if anything changed).**
+
+```sql
+UPDATE dim_customer d
+SET
+    effective_to = CURRENT_DATE - INTERVAL '1 day',
+    is_current   = FALSE
+FROM staging_customer s
+WHERE d.customer_id = s.customer_id
+  AND d.is_current = TRUE
+  AND (d.name <> s.name OR d.city <> s.city);
+```
+
+**Step 2: insert new current row.**
+
+```sql
+INSERT INTO dim_customer (
+    customer_id,
+    name,
+    city,
+    effective_from,
+    effective_to,
+    is_current,
+    version
+)
+SELECT
+    s.customer_id,
+    s.name,
+    s.city,
+    CURRENT_DATE             AS effective_from,
+    DATE '9999-12-31'        AS effective_to,
+    TRUE                     AS is_current,
+    COALESCE(d.version, 0) + 1 AS version
+FROM staging_customer s
+LEFT JOIN dim_customer d
+  ON d.customer_id = s.customer_id
+ AND d.is_current = TRUE
+WHERE (d.customer_sk IS NULL)           -- new customer
+   OR (d.name <> s.name OR d.city <> s.city);  -- changed customer
+```
+
+**Point-in-time query example:**
+
+```sql
+SELECT *
+FROM dim_customer
+WHERE customer_id = 123
+  AND DATE '2024-06-30' BETWEEN effective_from AND effective_to;
+```
+
+***
+
+### SCD Type 3 – Limited History (Current + Previous)
+
+* Store only **current** and **one previous** value in columns.
+
+```sql
+ALTER TABLE dim_customer
+ADD COLUMN previous_city VARCHAR(100),
+ADD COLUMN city_change_date DATE;
+
+-- On city change:
+UPDATE dim_customer d
+SET
+    previous_city    = d.city,
+    city             = s.city,
+    city_change_date = CURRENT_DATE
+FROM staging_customer s
+WHERE d.customer_id = s.customer_id
+  AND d.city <> s.city;
+```
+
+***
+
+### SCD Type 4 – History Table (Separate)
+
+* Current table stays simple; separate **history** table keeps all old versions.
+
+```sql
+CREATE TABLE dim_customer_current (
+    customer_id INT PRIMARY KEY,
+    name        VARCHAR(100),
+    city        VARCHAR(100)
+);
+
+CREATE TABLE dim_customer_history (
+    history_sk   INT PRIMARY KEY,
+    customer_id  INT,
+    name         VARCHAR(100),
+    city         VARCHAR(100),
+    effective_from DATE,
+    effective_to   DATE
+);
+
+-- On change: archive old row → history, then update current
+INSERT INTO dim_customer_history (
+    customer_id, name, city, effective_from, effective_to
+)
+SELECT
+    c.customer_id,
+    c.name,
+    c.city,
+    c.effective_from,
+    CURRENT_DATE - INTERVAL '1 day'
+FROM dim_customer_current c
+JOIN staging_customer s
+  ON c.customer_id = s.customer_id
+WHERE c.city <> s.city;
+
+UPDATE dim_customer_current c
+SET
+    name  = s.name,
+    city  = s.city,
+    effective_from = CURRENT_DATE
+FROM staging_customer s
+WHERE c.customer_id = s.customer_id;
+```
+
+***
+
+### SCD Type 6 – Hybrid (1 + 2 + 3)
+
+* Combines:
+  * Type 1: current values kept on row.
+  * Type 2: multiple rows with validity dates.
+  * Type 3: separate “previous” columns.
+
+Example structure:
+
+```sql
+CREATE TABLE dim_customer_type6 (
+    customer_sk       INT PRIMARY KEY,
+    customer_id       INT,
+    current_city      VARCHAR(100),   -- Type 1: always latest
+    historical_city   VARCHAR(100),   -- Type 2: city at that time
+    previous_city     VARCHAR(100),   -- Type 3: prior value
+    effective_from    DATE,
+    effective_to      DATE,
+    is_current        BOOLEAN
+);
+```
+
+Pattern: on change, **expire** current row, **insert** new row (Type 2), and use `current_city` / `previous_city` to keep both latest and prior value on each row.
+
+## XXIV. Normalization (Database Design)
+
+**Normalization** is the process of structuring relational tables to:
+
+- Reduce **data redundancy** (avoid unnecessary duplication)  
+- Avoid anomalies on `INSERT`, `UPDATE`, `DELETE`  
+- Improve **data integrity** and consistency  
+
+In practice, this usually means splitting data into multiple related tables so that each table represents **one concept**, and non-key columns depend properly on the key.
+
+### A. Anomalies (What Normalization Tries to Avoid)
+
+- **Update anomaly:** Same fact stored in many rows; updating one place but not others causes inconsistency.  
+- **Insert anomaly:** Cannot insert a fact because other unrelated data is missing.  
+- **Delete anomaly:** Deleting one fact accidentally removes other important data.  
+
+***
+
+### B. First Normal Form (1NF)
+
+A table is in **1NF** if:
+
+- Each column holds **atomic** (indivisible) values (no arrays, lists, repeated groups).  
+- Each row is unique.  
+- There are no repeating column groups like `phone1`, `phone2`, etc.  
+
+**Bad (not 1NF):**
+
+```text
+order_id | customer_name | product_ids
+--------------------------------------
+1        | Alice         | 10, 12, 15
+```
+
+**Good (1NF):**
+
+```text
+orders
+-------
+order_id | customer_name
+1        | Alice
+
+order_items
+-----------
+order_id | product_id
+1        | 10
+1        | 12
+1        | 15
+```
+
+***
+
+### C. Second Normal Form (2NF)
+
+Applies when the primary key is **composite** (multiple columns).
+
+A table is in **2NF** if:
+
+- It is already in **1NF**.  
+- Every non-key column depends on the **entire** primary key, not just part of it.  
+
+**Bad (not 2NF):**
+
+```text
+-- PK = (order_id, product_id)
+order_id | product_id | product_name | quantity
+----------------------------------------------
+1        | 10         | Keyboard     | 2
+1        | 11         | Mouse        | 1
+```
+
+Here, `product_name` depends only on `product_id`, not on the full key `(order_id, product_id)`.
+
+**Good (2NF):**
+
+```text
+products
+---------
+product_id | product_name
+10         | Keyboard
+11         | Mouse
+
+order_items
+-----------
+order_id | product_id | quantity
+1        | 10         | 2
+1        | 11         | 1
+```
+
+***
+
+### D. Third Normal Form (3NF)
+
+A table is in **3NF** if:
+
+- It is already in **2NF**.  
+- There are **no transitive dependencies**:
+  - No non-key column depends on another non-key column.  
+
+**Bad (not 3NF):**
+
+```text
+customers
+---------
+customer_id | zip_code | city    | state
+----------------------------------------
+1           | 98101    | Seattle | WA
+2           | 98052    | Redmond | WA
+```
+
+If `zip_code → (city, state)`, then `city` and `state` depend on `zip_code` (a non-key), not directly on `customer_id`.
+
+**Good (3NF):**
+
+```text
+customers
+---------
+customer_id | zip_code
+1           | 98101
+2           | 98052
+
+zip_codes
+---------
+zip_code | city    | state
+98101    | Seattle | WA
+98052    | Redmond | WA
+```
+
+Now every non-key column in each table depends only on that table’s key.
+
+***
+
+### E. Boyce–Codd Normal Form (BCNF)
+
+BCNF is a slightly stricter version of 3NF:
+
+- For every functional dependency `X → Y` in a table, `X` must be a **superkey**.
+
+In practice:
+
+- If your schema is in **3NF** and you do not have unusual dependencies (e.g., overlapping candidate keys), you are often close to BCNF.  
+- BCNF may require further decomposition into more tables to remove subtle dependency issues.  
+
+***
+
+### F. Normalize vs. Denormalize
+
+- **Normalize (1NF → 2NF → 3NF/BCNF)** for OLTP:
+  - Many small, concurrent writes.  
+  - Want to avoid anomalies and keep data consistent.  
+
+- **Denormalize (selectively)** for OLAP / analytics:
+  - Fewer writes, many complex reads.  
+  - Star/snowflake schemas intentionally duplicate some descriptive data for simpler, faster reporting queries.  
