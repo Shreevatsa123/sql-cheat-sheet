@@ -117,6 +117,61 @@
 * `TOP <number> [PERCENT] [WITH TIES]` (SQL Server/Access)
     * Limits rows returned (used in `SELECT`). `WITH TIES` includes rows that match the sort value of the last row.
 
+#### SQL: TOP [PERCENT] [WITH TIES]
+
+`TOP` limits the number of rows returned in a `SELECT` query (SQL Server / MS Access).
+
+##### Syntax
+```sql
+SELECT TOP <number> [PERCENT] [WITH TIES] *
+FROM table_name
+ORDER BY column DESC;
+````
+
+##### Example Data
+
+| name | score |
+| ---- | ----- |
+| A    | 100   |
+| B    | 95    |
+| C    | 95    |
+| D    | 90    |
+
+##### TOP
+
+```sql
+SELECT TOP 2 *
+FROM Scores
+ORDER BY score DESC;
+```
+
+Returns only the first 2 rows.
+
+##### WITH TIES
+
+```sql
+SELECT TOP 2 WITH TIES *
+FROM Scores
+ORDER BY score DESC;
+```
+
+Returns extra rows that have the same `ORDER BY` value as the last row.
+
+##### PERCENT
+
+```sql
+SELECT TOP 50 PERCENT *
+FROM Scores
+ORDER BY score DESC;
+```
+
+Returns the top percentage of rows instead of a fixed count.
+
+##### Notes
+
+* `ORDER BY` is required for meaningful results
+* `WITH TIES` works only with `ORDER BY`
+
 ---
 
 ## IV. Aggregate Functions (Usually used with `GROUP BY`)
