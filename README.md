@@ -188,6 +188,52 @@ Returns the top percentage of rows instead of a fixed count.
     * Finds the maximum value in a column.
 * `GROUP_CONCAT(<column> [SEPARATOR 'sep'])` (MySQL) / `STRING_AGG(<column>, 'sep')` (PostgreSQL/SQL Server) / `LISTAGG(<column>, 'sep') WITHIN GROUP (ORDER BY ...)` (Oracle)
     * Concatenates string values from different rows within a group.
+ 
+#### SQL: Concatenate Strings Across Rows
+
+Use this to combine values from multiple rows into a single string per group.
+
+| Function | SQL Flavor | Notes |
+|----------|-----------|------|
+| `GROUP_CONCAT(column [SEPARATOR 'sep'])` | MySQL | Default separator is `,` |
+| `STRING_AGG(column, 'sep')` | PostgreSQL / SQL Server | Must provide separator |
+| `LISTAGG(column, 'sep') WITHIN GROUP (ORDER BY ...)` | Oracle | Can order values before concatenating |
+
+##### Example Table: `Fruits`
+| category | name   |
+|----------|--------|
+| Citrus   | Orange |
+| Citrus   | Lemon  |
+| Berry    | Strawberry |
+| Berry    | Blueberry |
+
+##### MySQL / PostgreSQL / SQL Server
+```sql
+SELECT category, GROUP_CONCAT(name SEPARATOR ', ') AS all_fruits
+FROM Fruits
+GROUP BY category;
+````
+
+**Result:**
+
+| category | all_fruits            |
+| -------- | --------------------- |
+| Citrus   | Orange, Lemon         |
+| Berry    | Strawberry, Blueberry |
+
+##### Oracle
+
+```sql
+SELECT category, LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name) AS all_fruits
+FROM Fruits
+GROUP BY category;
+```
+
+##### Notes
+
+* Concatenates all row values **within each group**.
+* `ORDER BY` inside `LISTAGG` controls the order of concatenated strings.
+* Separator is optional; default is usually a comma.
 
 ---
 
