@@ -74,7 +74,7 @@
 * `WHERE <condition>`
     * Filters rows based on specified conditions. Executed *before* grouping.
     
-    * ## SQL: WHERE 1=1
+    * WHERE 1=1
 
         - Always true condition in `WHERE` clause.
         - Used for **dynamic query building** to append multiple conditions easily.
