@@ -73,6 +73,15 @@
     * Specifies the table(s) to query.
 * `WHERE <condition>`
     * Filters rows based on specified conditions. Executed *before* grouping.
+    
+    * ## SQL: WHERE 1=1
+
+        - Always true condition in `WHERE` clause.
+        - Used for **dynamic query building** to append multiple conditions easily.
+        - Helps in **debugging/toggling** conditions safely.
+        - Ensures **template/ORM consistency** when generating queries.
+        - Rarely used to create always-true join conditions (cross join effect).
+
 * `AS <alias>`
     * Assigns a temporary, more readable name to a column or table for the duration of the query.
     * `SELECT c.name AS customer_name FROM customers AS c;`
