@@ -2,7 +2,6 @@
 
 ## Table of Contents
 
-- [Comprehensive SQL Cheatsheet: Beginner to Advanced](#comprehensive-sql-cheatsheet-beginner-to-advanced)
 - [I. Basic Queries & Clauses](#i-basic-queries--clauses)
 - [II. Filtering Operators (Used with `WHERE` and `HAVING`)](#ii-filtering-operators-used-with-where-and-having)
 - [III. Sorting & Limiting Results](#iii-sorting--limiting-results)
