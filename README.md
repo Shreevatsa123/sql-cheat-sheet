@@ -45,6 +45,13 @@
   - [D. Third Normal Form (3NF)](#d-third-normal-form-3nf)
   - [E. Boyce–Codd Normal Form (BCNF)](#e-boycecodd-normal-form-bcnf)
   - [F. Normalize vs. Denormalize](#f-normalize-vs-denormalize)
+- [XXVII. ACID Properties (Transaction Management)](#xxvii-acid-properties-transaction-management)
+  - [A. Atomicity (All or Nothing)](#a-atomicity-all-or-nothing)
+  - [B. Consistency (Valid State to Valid State)](#b-consistency-valid-state-to-valid-state)
+  - [C. Isolation (Concurrent Transactions Don't Interfere)](#c-isolation-concurrent-transactions-dont-interfere)
+  - [D. Durability (Committed Changes Persist)](#d-durability-committed-changes-persist)
+  - [E. Savepoints (Partial Rollback)](#e-savepoints-partial-rollback)
+  - [F. Deadlock Handling](#f-deadlock-handling)
 
 
 **General Notes:**
@@ -906,3 +913,170 @@ In practice:
 - **Denormalize (selectively)** for OLAP / analytics:
   - Fewer writes, many complex reads.  
   - Star/snowflake schemas intentionally duplicate some descriptive data for simpler, faster reporting queries.  
+
+You're right! I included ACID properties in my initial long code block but it didn't make it into your final markdown. Here's the **ACID section** to add after the Normalization section:
+
+***
+
+## XXVII. ACID Properties (Transaction Management)
+
+**ACID** stands for **Atomicity, Consistency, Isolation, Durability** — the four key properties that guarantee reliable database transactions.
+
+### A. Atomicity (All or Nothing)
+
+A transaction is treated as a **single unit of work**:
+
+- Either **all** operations in the transaction succeed and are committed, or  
+- **None** of them are applied (transaction is rolled back).
+
+No partial completion is allowed.
+
+**Example:**
+
+```sql
+START TRANSACTION;
+
+    UPDATE accounts SET balance = balance - 500 WHERE account_id = 1;
+    UPDATE accounts SET balance = balance + 500 WHERE account_id = 2;
+    
+    -- If either fails, ROLLBACK undoes both
+    -- If both succeed, COMMIT makes both permanent
+
+COMMIT;  -- or ROLLBACK;
+```
+
+***
+
+### B. Consistency (Valid State to Valid State)
+
+A transaction moves the database from one **valid state** to another:
+
+- All defined rules (constraints, triggers, cascades) must be satisfied before and after the transaction.
+- If a transaction would violate constraints, it is rolled back.
+
+**Example:**
+
+```sql
+CREATE TABLE accounts (
+    account_id INT PRIMARY KEY,
+    balance DECIMAL(10,2) NOT NULL CHECK (balance >= 0)  -- Constraint
+);
+
+START TRANSACTION;
+    UPDATE accounts SET balance = -100 WHERE account_id = 1;  -- FAILS (violates CHECK)
+ROLLBACK;
+```
+
+***
+
+### C. Isolation (Concurrent Transactions Don't Interfere)
+
+Transactions execute **independently** of each other:
+
+- Concurrent transactions should not see each other's uncommitted changes (depending on isolation level).
+- Controlled by **isolation levels** that balance consistency vs. performance.
+
+#### Isolation Levels (from least to most strict):
+
+| Level | Dirty Reads | Non-Repeatable Reads | Phantom Reads |
+|-------|-------------|---------------------|---------------|
+| **READ UNCOMMITTED** | ✓ Possible | ✓ Possible | ✓ Possible |
+| **READ COMMITTED** | ✗ Prevented | ✓ Possible | ✓ Possible |
+| **REPEATABLE READ** | ✗ Prevented | ✗ Prevented | ✓ Possible |
+| **SERIALIZABLE** | ✗ Prevented | ✗ Prevented | ✗ Prevented |
+
+**Setting isolation level:**
+
+```sql
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+-- or REPEATABLE READ, SERIALIZABLE, READ UNCOMMITTED
+
+START TRANSACTION;
+    -- your queries
+COMMIT;
+```
+
+**Definitions:**
+
+- **Dirty read:** Reading uncommitted changes from another transaction.
+- **Non-repeatable read:** Same query returns different results within a transaction because another transaction modified the data.
+- **Phantom read:** Same query returns different rows within a transaction because another transaction inserted/deleted rows.
+
+***
+
+### D. Durability (Committed Changes Persist)
+
+Once a transaction is **committed**, changes are **permanent**:
+
+- Data survives system crashes, power failures, or other errors.
+- Implemented via **write-ahead logging (WAL)** and periodic checkpoints.
+
+**Example:**
+
+```sql
+START TRANSACTION;
+    INSERT INTO orders VALUES (1001, 'Customer A', CURRENT_DATE);
+COMMIT;  -- After COMMIT succeeds, this data will survive even if server crashes immediately
+```
+
+***
+
+### E. Savepoints (Partial Rollback)
+
+You can set **savepoints** within a transaction to roll back to a specific point without undoing the entire transaction:
+
+```sql
+START TRANSACTION;
+
+    INSERT INTO orders VALUES (1001, 'Customer A', CURRENT_DATE);
+    
+    SAVEPOINT before_items;
+    
+    INSERT INTO order_items VALUES (1001, 'Product X', 2);
+    INSERT INTO order_items VALUES (1001, 'Product Y', 1);
+    
+    -- Oops, Product Y is out of stock
+    ROLLBACK TO SAVEPOINT before_items;  -- Undo only order_items, keep order
+    
+    INSERT INTO order_items VALUES (1001, 'Product Z', 1);
+
+COMMIT;
+```
+
+***
+
+### F. Deadlock Handling
+
+A **deadlock** occurs when two or more transactions wait for each other to release locks:
+
+**Transaction 1:**
+
+```sql
+START TRANSACTION;
+    UPDATE accounts SET balance = balance - 100 WHERE account_id = 1;
+    -- waiting for lock on account 2...
+    UPDATE accounts SET balance = balance + 100 WHERE account_id = 2;
+COMMIT;
+```
+
+**Transaction 2 (runs simultaneously):**
+
+```sql
+START TRANSACTION;
+    UPDATE accounts SET balance = balance - 50 WHERE account_id = 2;
+    -- waiting for lock on account 1... (DEADLOCK!)
+    UPDATE accounts SET balance = balance + 50 WHERE account_id = 1;
+COMMIT;
+```
+
+**Resolution:**
+
+- Database detects the deadlock and **kills one transaction** (victim).
+- Application should **catch the error and retry** the failed transaction.
+
+**Prevention:**
+
+- Always acquire locks in the **same order** across all transactions.
+- Keep transactions **short** and **fast**.
+
+***
