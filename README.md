@@ -101,8 +101,7 @@
     * Searches for a pattern in string data. Case sensitivity depends on collation settings.
     * `%`: Wildcard for zero or more characters (e.g., `'S%'` finds strings starting with S).
     * `_`: Wildcard for exactly one character (e.g., `'T_m'` finds Tim, Tom, Tam).
-    * `[]` (SQL Server/Access): Matches any single character within the brackets (e.g., `'[TC]om'` finds Tom and Com).
-    * `^` or `!` (SQL Server/Access): Matches any character *not* within the brackets (e.g., `'[^A-F]%'` finds strings not starting with A-F).
+    * `[]` with REGEXP: Matches any single character within the brackets (e.g., WHERE name REGEXP `'^[TC]om'` finds Tom and Com)..
 * `IN (<value1, value2, ...>)`
     * Checks if a value matches any value in a provided list.
 * `IS NULL` / `IS NOT NULL`
@@ -121,65 +120,14 @@
 * `OFFSET <number>` (MySQL/PostgreSQL/SQLite)
     * Skips a specified number of rows before starting to return rows (often used with `LIMIT` for pagination).
     * `LIMIT 10 OFFSET 20` (Returns rows 21-30).
-* `FETCH FIRST <number> ROWS ONLY` (Standard SQL/Oracle/DB2)
-    * Standard SQL way to limit rows.
-* `TOP <number> [PERCENT] [WITH TIES]` (SQL Server/Access)
-    * Limits rows returned (used in `SELECT`). `WITH TIES` includes rows that match the sort value of the last row.
+      
+```sql 
+-- Get top 2
+SELECT * FROM Scores ORDER BY score DESC LIMIT 2;
 
-#### SQL: TOP [PERCENT] [WITH TIES]
-
-`TOP` limits the number of rows returned in a `SELECT` query (SQL Server / MS Access).
-
-##### Syntax
-```sql
-SELECT TOP <number> [PERCENT] [WITH TIES] *
-FROM table_name
-ORDER BY column DESC;
-````
-
-##### Example Data
-
-| name | score |
-| ---- | ----- |
-| A    | 100   |
-| B    | 95    |
-| C    | 95    |
-| D    | 90    |
-
-##### TOP
-
-```sql
-SELECT TOP 2 *
-FROM Scores
-ORDER BY score DESC;
+-- Get rows 21-30 (Pagination)
+SELECT * FROM Scores ORDER BY score DESC LIMIT 10 OFFSET 20;
 ```
-
-Returns only the first 2 rows.
-
-##### WITH TIES
-
-```sql
-SELECT TOP 2 WITH TIES *
-FROM Scores
-ORDER BY score DESC;
-```
-
-Returns extra rows that have the same `ORDER BY` value as the last row.
-
-##### PERCENT
-
-```sql
-SELECT TOP 50 PERCENT *
-FROM Scores
-ORDER BY score DESC;
-```
-
-Returns the top percentage of rows instead of a fixed count.
-
-##### Notes
-
-* `ORDER BY` is required for meaningful results
-* `WITH TIES` works only with `ORDER BY`
 
 ---
 
@@ -195,18 +143,12 @@ Returns the top percentage of rows instead of a fixed count.
     * Finds the minimum value in a column.
 * `MAX(<column>)`
     * Finds the maximum value in a column.
-* `GROUP_CONCAT(<column> [SEPARATOR 'sep'])` (MySQL) / `STRING_AGG(<column>, 'sep')` (PostgreSQL/SQL Server) / `LISTAGG(<column>, 'sep') WITHIN GROUP (ORDER BY ...)` (Oracle)
+* `GROUP_CONCAT(<column> [SEPARATOR 'sep'])` (MySQL) 
     * Concatenates string values from different rows within a group.
  
 #### SQL: Concatenate Strings Across Rows
 
 Use this to combine values from multiple rows into a single string per group.
-
-| Function | SQL Flavor | Notes |
-|----------|-----------|------|
-| `GROUP_CONCAT(column [SEPARATOR 'sep'])` | MySQL | Default separator is `,` |
-| `STRING_AGG(column, 'sep')` | PostgreSQL / SQL Server | Must provide separator |
-| `LISTAGG(column, 'sep') WITHIN GROUP (ORDER BY ...)` | Oracle | Can order values before concatenating |
 
 ##### Example Table: `Fruits`
 | category | name   |
@@ -216,27 +158,12 @@ Use this to combine values from multiple rows into a single string per group.
 | Berry    | Strawberry |
 | Berry    | Blueberry |
 
-##### MySQL / PostgreSQL / SQL Server
+##### MySQL 
 ```sql
-SELECT category, GROUP_CONCAT(name SEPARATOR ', ') AS all_fruits
+SELECT category, GROUP_CONCAT(name ORDER BY name SEPARATOR ', ') AS all_fruits
 FROM Fruits
 GROUP BY category;
 ````
-
-**Result:**
-
-| category | all_fruits            |
-| -------- | --------------------- |
-| Citrus   | Orange, Lemon         |
-| Berry    | Strawberry, Blueberry |
-
-##### Oracle
-
-```sql
-SELECT category, LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name) AS all_fruits
-FROM Fruits
-GROUP BY category;
-```
 
 ##### Notes
 
