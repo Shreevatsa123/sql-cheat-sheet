@@ -191,7 +191,15 @@ GROUP BY category;
 * `RIGHT JOIN <table2> ON <join_condition>` (or `RIGHT OUTER JOIN`)
     * Returns *all* rows from the right table (table2), and matching rows from the left table (table1). If no match, columns from the left table have NULL values.
 * `FULL OUTER JOIN <table2> ON <join_condition>`
-    * Returns all rows when there is a match in *either* the left or right table. Combines `LEFT` and `RIGHT` join results. (Not supported directly in MySQL - emulate with `UNION`).
+    * (Not supported directly in MySQL - emulate with `UNION`).
+
+```sql
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.id = t2.id
+UNION
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id;
+
+```
 * `CROSS JOIN <table2>`
     * Returns the Cartesian product: every row from the first table combined with every row from the second table. No `ON` clause needed (or use `ON 1=1`).
 * `SELF JOIN`
@@ -213,8 +221,9 @@ GROUP BY category;
     * Combines results like `UNION`, but includes *all* rows (duplicates are kept). Generally faster.
 * `INTERSECT`
     * Returns only rows that appear in the results of *both* `SELECT` statements. Returns distinct rows. (Not supported directly in MySQL - emulate with `JOIN` or `IN`).
-* `EXCEPT` (Standard SQL/PostgreSQL/SQL Server) / `MINUS` (Oracle)
+* `EXCEPT` (Standard SQL/PostgreSQL/SQL Server) 
     * Returns distinct rows from the first `SELECT` statement that are *not* found in the second `SELECT` statement. (Not supported directly in MySQL - emulate with `LEFT JOIN...IS NULL` or `NOT IN`).
+* Note about `INTERSECT` and `EXCEPT` - These were added in MySQL 8.0.31. If using an older version, note that they must be emulated using IN or NOT IN
 
 ---
 
@@ -272,18 +281,18 @@ GROUP BY category;
 
 ## XI. String Functions (Syntax/availability varies)
 
-* `CONCAT(str1, str2, ...)` / `str1 + str2` / `str1 || str2`: Concatenates strings.
-* `LENGTH(str)` / `LEN(str)` / `DATALENGTH(str)`: Returns the length (bytes or characters depending on function/DB).
+* `CONCAT(str1, str2, ...)` or `CONCAT_WS(separator, str1, str2)`: Concatenates strings.
+* `LENGTH()` (bytes) or `CHAR_LENGTH()` (characters) : Returns the length (bytes or characters depending on function/DB).
 * `SUBSTRING(str, start_pos, length)` / `SUBSTR(...)`: Extracts a substring.
 * `LEFT(str, num_chars)` / `RIGHT(str, num_chars)`: Extracts characters from the left/right.
 * `UPPER(str)` / `UCASE(str)` / `LOWER(str)` / `LCASE(str)`: Converts case.
 * `REPLACE(str, substring_to_replace, replacement_substring)`: Replaces occurrences of a substring.
 * `TRIM([ [LEADING|TRAILING|BOTH] [chars_to_trim] FROM ] str)`: Removes leading/trailing/both spaces or specified characters.
 * `LTRIM(str, [chars])` / `RTRIM(str, [chars])`: Removes leading/trailing spaces or specified characters.
-* `POSITION(substring IN string)` / `CHARINDEX(substring, string, [start])` / `INSTR(string, substring, [start])`: Finds the starting position of a substring.
+* `LOCATE(substr, str)` / `INSTR(string, substring, [start])`: Finds the starting position of a substring.
 * `LPAD(str, length, pad_str)` / `RPAD(str, length, pad_str)`: Pads a string to a certain length with another string (left/right).
 * `FORMAT(value, format_code)`: Formats numbers, dates, etc., as strings (Syntax varies greatly).
-* `STUFF(str, start, length, insert_str)` (SQL Server): Deletes part of a string and inserts another part.
+* `INSERT(str, pos, len, newstr)` : Deletes part of a string and inserts another part.
 * `REVERSE(str)`: Reverses a string.
 * `SOUNDEX(str)` / `DIFFERENCE(str1, str2)`: Phonetic matching functions.
 
@@ -295,12 +304,12 @@ GROUP BY category;
 * `ROUND(num, [decimals])`: Rounds to specified decimal places (or integer if decimals=0).
 * `CEILING(num)` / `CEIL(num)`: Smallest integer >= number.
 * `FLOOR(num)`: Largest integer <= number.
-* `POWER(base, exponent)` / `POW(...)`: Raises base to the power of exponent.
+* `POWER(base, exponent)` / `POW(base, exponent)`: Raises base to the power of exponent.
 * `SQRT(num)`: Square root.
 * `MOD(dividend, divisor)` / `dividend % divisor`: Modulo (remainder of division).
 * `SIGN(num)`: Returns -1 (negative), 0 (zero), or 1 (positive).
 * `EXP(num)`: Exponential function (e^num).
-* `LOG(num)` / `LN(num)` / `LOG10(num)`: Logarithms (natural or base 10).
+* `LOG(num)` =  `LN(num)` / `LOG10(num)`: Logarithms (natural or base 10).
 * `PI()`: Returns the value of Pi.
 * `RAND()` / `RANDOM()`: Returns a random floating-point value (range varies).
 
@@ -308,15 +317,15 @@ GROUP BY category;
 
 ## XIII. Date & Time Functions (Highly dialect-specific)
 
-* **Current Date/Time:** `CURRENT_TIMESTAMP`, `NOW()`, `GETDATE()`, `SYSDATE`, etc.
-* **Current Date Only:** `CURRENT_DATE`, `GETUTCDATE()` (SQL Server for UTC), `CURDATE()` (MySQL).
+* **Current Date/Time:** `CURRENT_TIMESTAMP`, `NOW()`,  `SYSDATE`, `CURDATE()`
+* **Current Date Only:** `CURRENT_DATE`, `CURDATE()` (MySQL).
 * **Current Time Only:** `CURRENT_TIME`.
-* **Extract Parts:** `EXTRACT(part FROM datetime)`, `DATEPART(part, datetime)`, `YEAR()`, `MONTH()`, `DAY()`, `HOUR()`, `MINUTE()`, `SECOND()`.
+* **Extract Parts:** `EXTRACT(part FROM datetime)`,  `YEAR(date)`, `MONTH(date)`, `DAY(date)`, `HOUR()`, `MINUTE()`, `SECOND()`.
     * `part`: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, QUARTER, WEEK, DAYOFWEEK, DOY, etc.
-* **Add/Subtract Intervals:** `DATEADD(part, num, datetime)` (SQL Server), `datetime + INTERVAL 'num part'` (PostgreSQL/MySQL), `datetime + num` (Oracle days).
-* **Calculate Difference:** `DATEDIFF(part, start_datetime, end_datetime)` (SQL Server/MySQL), `end_datetime - start_datetime` (PostgreSQL/Oracle - returns interval/days).
-* **Format:** `FORMAT(datetime, format_str)`, `TO_CHAR(datetime, format_str)`, `DATE_FORMAT(datetime, format_str)`, `STRFTIME(format_str, datetime)`.
-* **Construct Date/Time:** `MAKEDATE()`, `MAKETIME()` (MySQL), `DATEFROMPARTS()`, `TIMEFROMPARTS()`, `DATETIMEFROMPARTS()` (SQL Server).
+* **Add/Subtract Intervals:** `DATE_ADD(date, INTERVAL 1 DAY)` or `date + INTERVAL 1 MONTH`
+* **Calculate Difference:** `DATEDIFF( start_datetime, end_datetime)` MySQL returns days only `(expr1 - expr2)`. For other units: Use `TIMESTAMPDIFF(unit, start, end)`.
+* **Format:** `FORMAT(datetime, format_str)`, `DATE_FORMAT(datetime, format_str)` or `DATE_FORMAT(date, '%Y-%m-%d')`. Example: `TIMESTAMPDIFF(MINUTE, start_time, end_time)`.
+* **Construct Date/Time:** `MAKEDATE()`, `MAKETIME()` (MySQL).
 
 ---
 
@@ -326,11 +335,11 @@ GROUP BY category;
     * Standard SQL conditional expression. Evaluates conditions sequentially.
 * `CASE <expression> WHEN value1 THEN result1 [WHEN value2 THEN result2 ...] [ELSE else_result] END`
     * Simplified CASE expression comparing an expression against multiple values.
-* `COALESCE(value1, value2, ...)`
+* `COALESCE(value1, value2, ...)` or `IFNULL(expression, alt_value)`
     * Returns the first non-NULL expression in the list. Useful for providing default values.
-* `NULLIF(expression1, expression2)`
+* `NULLIF(expression1, expression2)` 
     * Returns NULL if the two expressions are equal, otherwise returns the first expression. Useful for avoiding division-by-zero errors (`/ NULLIF(divisor, 0)`).
-* `IF(condition, value_if_true, value_if_false)` (MySQL) / `IIF(condition, value_if_true, value_if_false)` (SQL Server >= 2012 / Access)
+* `IF(condition, value_if_true, value_if_false)`
     * Simpler function for binary conditional logic.
 * `DECODE(expression, search1, result1, [search2, result2, ...], [default])` (Oracle)
     * Oracle-specific function similar to the simplified CASE expression.
@@ -345,13 +354,13 @@ GROUP BY category;
 * `CREATE TABLE <table_name> ( <col1> <type> [constraints], <col2> <type> [constraints], ... );`
 * `ALTER TABLE <table_name> ADD <column_definition | table_constraint>`
 * `ALTER TABLE <table_name> DROP [COLUMN] <column_name | CONSTRAINT <constraint_name>`
-* `ALTER TABLE <table_name> ALTER COLUMN <column_name> <new_type | SET DEFAULT | DROP DEFAULT | ADD/DROP NOT NULL>` (Syntax varies: `MODIFY COLUMN` in MySQL/Oracle)
+* `ALTER TABLE <table_name> MODIFY COLUMN <column_name> <new_type | SET DEFAULT | DROP DEFAULT | ADD/DROP NOT NULL>`
 * `ALTER TABLE <table_name> RENAME COLUMN <old_name> TO <new_name>` (Not universal, e.g., `sp_rename` in SQL Server)
 * `ALTER TABLE <table_name> RENAME TO <new_table_name>` (Syntax varies: `RENAME TABLE` in MySQL)
 * `DROP TABLE <table_name>` (Deletes table structure and data)
 * `TRUNCATE TABLE <table_name>` (Deletes all data quickly, usually cannot be rolled back, may not fire triggers)
 * `CREATE SCHEMA <schema_name>` / `DROP SCHEMA <schema_name>` (Namespace for tables/views etc.)
-
+* `RENAME TABLE old TO new` - Renaming the table
 ---
 
 ## XVI. Constraints (Enforce Data Integrity)
@@ -372,11 +381,8 @@ GROUP BY category;
 * `INSERT INTO <table_name> [(col1, ...)] SELECT <col_a, ...> FROM <source_table> WHERE ...;` (Inserts results of a query)
 * `UPDATE <table_name> SET <col1 = val1, col2 = val2, ...> WHERE <condition>;` (Modifies existing rows. **Use `WHERE` carefully!**)
 * `DELETE FROM <table_name> WHERE <condition>;` (Removes existing rows. **Use `WHERE` carefully!**)
-* `MERGE INTO <target> USING <source> ON <join_condition> WHEN MATCHED THEN UPDATE SET ... [DELETE] WHEN NOT MATCHED [BY TARGET] THEN INSERT ... WHEN NOT MATCHED BY SOURCE THEN UPDATE/DELETE ...;` (Standard SQL - performs INSERT/UPDATE/DELETE in one operation. Syntax/support varies. Often used for UPSERT).
-    * MySQL: `INSERT ... ON DUPLICATE KEY UPDATE ...`
-    * PostgreSQL: `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING`
-    * SQLite: `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING`
-
+* MySQL: `INSERT ... ON DUPLICATE KEY UPDATE ...`
+  
 ---
 
 ## XVIII. Transaction Control Language (TCL) - Manages Transactions
@@ -438,7 +444,6 @@ GROUP BY category;
 
 ## XXIII. Advanced & Miscellaneous
 
-* `PIVOT` / `UNPIVOT`: Transforms data from rows to columns (PIVOT) or columns to rows (UNPIVOT). Syntax is highly database-specific (native in SQL Server/Oracle, often emulated with conditional aggregation elsewhere).
 * `Sequences`: Database objects for generating unique numeric identifiers.
     * `CREATE SEQUENCE <seq_name> [START WITH ...] [INCREMENT BY ...] ...;`
     * `NEXT VALUE FOR <seq_name>` (Standard/SQL Server) / `nextval('<seq_name>')` (PostgreSQL/Oracle)
