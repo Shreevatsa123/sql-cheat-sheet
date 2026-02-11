@@ -277,7 +277,7 @@ SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id;
 * **Aggregate Functions as Window Functions:** `SUM()`, `AVG()`, `COUNT()`, `MIN()`, `MAX()` used with `OVER()`.
     * `SELECT order_id, amount, SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total FROM orders;`
 
-##### ** Ranking Functions**
+##### **Ranking Functions**
 
 * **`ROW_NUMBER()`**
 * **Missing Detail:** It is **non-deterministic** on ties. If two rows have the same value in the `ORDER BY` clause, MySQL does not guarantee which one gets ID 1 or 2 unless you add a second column to the sort (e.g., `ORDER BY score, created_at`).
@@ -292,7 +292,7 @@ SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id;
 * *Example:* 10 rows into `NTILE(3)` → Buckets will have sizes 4, 3, 3 (not 3, 3, 4).
 
 
-##### ** Offset (Value) Functions**
+##### **Offset (Value) Functions**
 
 * **`LAG(col, offset, default)` / `LEAD(col, offset, default)**`
 * **Missing Detail:** The **3rd argument** allows you to replace `NULL` automatically without needing `COALESCE`.
@@ -305,7 +305,7 @@ SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id;
 * *Fix:* You must explicitly add `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`.
 
 
-##### ** Aggregate Functions (SUM, AVG, COUNT)**
+##### **Aggregate Functions (SUM, AVG, COUNT)**
 
 * **Frame Nuance (`ROWS` vs `RANGE`):**
 * **`ROWS`**: Looks at physical rows (e.g., "previous 5 rows").
