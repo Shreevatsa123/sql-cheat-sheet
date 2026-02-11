@@ -184,7 +184,7 @@ GROUP BY category;
 
 ## VI. Joins (Combining Data from Multiple Tables)
 
-* `INNER JOIN <table2> ON <join_condition>`
+* `INNER JOIN <table2> ON <join_condition>` or just `JOIN`
     * Returns only rows where the join condition is met in *both* tables.
 * `LEFT JOIN <table2> ON <join_condition>` (or `LEFT OUTER JOIN`)
     * Returns *all* rows from the left table (table1), and matching rows from the right table (table2). If no match, columns from the right table have NULL values.
