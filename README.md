@@ -277,6 +277,52 @@ SELECT * FROM t1 RIGHT JOIN t2 ON t1.id = t2.id;
 * **Aggregate Functions as Window Functions:** `SUM()`, `AVG()`, `COUNT()`, `MIN()`, `MAX()` used with `OVER()`.
     * `SELECT order_id, amount, SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total FROM orders;`
 
+##### ** Ranking Functions**
+
+* **`ROW_NUMBER()`**
+* **Missing Detail:** It is **non-deterministic** on ties. If two rows have the same value in the `ORDER BY` clause, MySQL does not guarantee which one gets ID 1 or 2 unless you add a second column to the sort (e.g., `ORDER BY score, created_at`).
+
+
+* **`RANK()` vs `DENSE_RANK()**`
+* **Usage Nuance:** Use `DENSE_RANK()` when finding the "Top N" items (e.g., top 3 salaries) if you want exactly N distinct values, regardless of ties. `RANK()` might skip the number 3 if there is a tie for 2nd place.
+
+
+* **`NTILE(N)`**
+* **Missing Detail:** If the rows don't divide evenly by N, the **extra rows are assigned to the first buckets**.
+* *Example:* 10 rows into `NTILE(3)` → Buckets will have sizes 4, 3, 3 (not 3, 3, 4).
+
+
+##### ** Offset (Value) Functions**
+
+* **`LAG(col, offset, default)` / `LEAD(col, offset, default)**`
+* **Missing Detail:** The **3rd argument** allows you to replace `NULL` automatically without needing `COALESCE`.
+* *Example:* `LAG(sales, 1, 0)` returns `0` instead of `NULL` for the very first row.
+
+
+* **`FIRST_VALUE()` / `LAST_VALUE()**`
+* **Critical Trap:** `LAST_VALUE()` almost always fails with the default window.
+* *Why:* The default frame ends at the **"Current Row"**. So, `LAST_VALUE` just returns the row you are currently on.
+* *Fix:* You must explicitly add `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`.
+
+
+##### ** Aggregate Functions (SUM, AVG, COUNT)**
+
+* **Frame Nuance (`ROWS` vs `RANGE`):**
+* **`ROWS`**: Looks at physical rows (e.g., "previous 5 rows").
+* **`RANGE`**: Looks at logical values (e.g., "transactions within 5 days of this date").
+* *Example:* `RANGE BETWEEN 5 PRECEDING AND CURRENT ROW` on a date column will group all transactions from the last 5 days, even if that is 1000 physical rows.
+
+
+
+### **4. Window Frame Shorthands**
+
+The screenshot lists full syntax, but MySQL supports these shorthands for the frame clause:
+
+* **`UNBOUNDED PRECEDING`**: Start of the partition.
+* **`UNBOUNDED FOLLOWING`**: End of the partition.
+* **`CURRENT ROW`**: The row being processed.
+* **`N PRECEDING` / `N FOLLOWING**`: N physical rows before/after.
+
 ---
 
 ## XI. String Functions (Syntax/availability varies)
