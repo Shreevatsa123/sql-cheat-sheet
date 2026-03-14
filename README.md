@@ -2,6 +2,8 @@
 
 ## Table of Contents
 
+- [A. Query Optimization](#a-query-optimization)
+
 - [I. Basic Queries & Clauses](#i-basic-queries--clauses)
 - [II. Filtering Operators (Used with `WHERE` and `HAVING`)](#ii-filtering-operators-used-with-where-and-having)
 - [III. Sorting & Limiting Results](#iii-sorting--limiting-results)
@@ -63,7 +65,78 @@
     * Multi-line: `/* This is a multi-line comment */`
 * **Dialects:** Syntax can vary slightly between database systems (e.g., PostgreSQL, MySQL, SQL Server, Oracle, SQLite). This guide aims for general concepts and common syntax, noting variations where significant.
 
+
+# A. Query Optimization
+
+To solve SQL problems with an "Optimization First" mindset, you must prioritize reducing the dataset size as early as possible in the execution flow.
+
+## 1. The Strategy Hierarchy
+
+When multiple ways to solve a problem exist, follow this order of preference:
+
+| Priority | Technique | Why? |
+| --- | --- | --- |
+| **1. Best** | **Direct Joins & WHERE** | Uses indexes efficiently and filters data at the source. |
+| **2. High** | **Window Functions** | Replaces complex self-joins with a single pass over the data. |
+| **3. Good** | **CTEs (WITH clause)** | Improves readability and allows the optimizer to materialize results. |
+| **4. Next Best** | **Derived Tables (FROM subquery)** | Good for pre-aggregating data before a join. |
+| **5. Avoid** | **Correlated Subqueries** | Often leads to $O(n^2)$ performance (runs once for every row). |
+
 ---
+
+## 2. Key Optimization Tactics
+
+### Filtering: `WHERE` vs. `HAVING`
+
+* **Always use `WHERE**` for filtering standard columns. It executes *before* the [GROUP BY](https://github.com/Shreevatsa123/sql-cheat-sheet#v-grouping-data) clause, reducing the number of rows to be processed.
+* **Use `HAVING` only** for conditions involving [Aggregate Functions](https://www.google.com/search?q=https://github.com/Shreevatsa123/sql-cheat-sheet%23iv-aggregate-functions-usually-used-with-group-by-) (e.g., `COUNT(*) > 5`).
+
+### SARGability (Search Argument-able)
+
+To ensure the database uses [Indexes](https://github.com/Shreevatsa123/sql-cheat-sheet#xx-indexes), keep columns "naked" in the `WHERE` clause.
+
+* **Slow:** `WHERE YEAR(order_date) = 2025` (Prevents index use).
+* **Fast:** `WHERE order_date >= '2025-01-01' AND order_date < '2026-01-01'`.
+
+### Existence Checks: `EXISTS` vs. `IN`
+
+* **Use `EXISTS**` when you only need to check for a match. It "short-circuits" (stops searching) as soon as the first match is found.
+* **Avoid `IN**` for large subqueries, as the database may attempt to build the entire list in memory first.
+
+### Set Operations
+
+* **Prefer `UNION ALL**` over `UNION`.
+* `UNION` forces the database to perform a distinct/sort operation to remove duplicates, which is resource-heavy. Only use `UNION` if you explicitly need to remove duplicates.
+
+---
+
+## 3. Advanced Performance Tips
+
+### Window Function Nuances
+
+* **Ranking:** Use `DENSE_RANK()` if you need the "Top N" items without skipping numbers during ties.
+* **Frame Definition:** Be careful with `LAST_VALUE()`. By default, it only looks from the start of the partition to the *current row*. To see the whole partition, use:
+`ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`
+
+### Logical Execution Order
+
+Remember that SQL executes in this order:
+
+1. `FROM` / `JOIN`
+2. `WHERE`
+3. `GROUP BY`
+4. `HAVING`
+5. `SELECT` (Aliases are created here)
+6. `ORDER BY`
+7. `LIMIT`
+
+> **Note:** Because `WHERE` runs before `SELECT`, you cannot filter by a column alias in the `WHERE` clause.
+
+### General Housekeeping
+
+* **Selectivity:** Avoid `SELECT *`. Only retrieve the columns you actually need to reduce I/O.
+* **Explain Plans:** Always use `EXPLAIN ANALYZE` on complex queries to see the "cost" of each step and identify bottlenecks.
+
 
 ## I. Basic Queries & Clauses
 
