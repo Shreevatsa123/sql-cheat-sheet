@@ -3,7 +3,6 @@
 ## Table of Contents
 
 - [A. Query Optimization](#a-query-optimization)
-
 - [I. Basic Queries & Clauses](#i-basic-queries--clauses)
 - [II. Filtering Operators (Used with `WHERE` and `HAVING`)](#ii-filtering-operators-used-with-where-and-having)
 - [III. Sorting & Limiting Results](#iii-sorting--limiting-results)
