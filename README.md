@@ -532,6 +532,7 @@ Primary Goal: To reduce the number of disk lookups (I/O) required to find specif
 
 Trade-off: Every time you modify data, the database must also update the index, which can impact performance on write-heavy tables.
 
+
 * `CREATE [UNIQUE] INDEX <index_name> ON <table_name> (col1 [ASC|DESC], ...);`
     * Creates an index to speed up data retrieval. `UNIQUE` enforces uniqueness.
 * `CREATE INDEX <index_name> ON <table_name> (...) INCLUDE (col_a, col_b);` (SQL Server/PostgreSQL)
