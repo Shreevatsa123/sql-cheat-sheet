@@ -526,6 +526,12 @@ The screenshot lists full syntax, but MySQL supports these shorthands for the fr
 
 ## XX. Indexes
 
+An Index is a powerful database structure that improves the speed of data retrieval operations on a table at the cost of additional storage and slower writes (INSERT/UPDATE). Think of it like a book's index: instead of scanning every page to find a topic, you look up the keyword and jump straight to the correct page number.
+
+Primary Goal: To reduce the number of disk lookups (I/O) required to find specific rows.
+
+Trade-off: Every time you modify data, the database must also update the index, which can impact performance on write-heavy tables.
+
 * `CREATE [UNIQUE] INDEX <index_name> ON <table_name> (col1 [ASC|DESC], ...);`
     * Creates an index to speed up data retrieval. `UNIQUE` enforces uniqueness.
 * `CREATE INDEX <index_name> ON <table_name> (...) INCLUDE (col_a, col_b);` (SQL Server/PostgreSQL)
